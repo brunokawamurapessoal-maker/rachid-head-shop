@@ -967,4 +967,275 @@ export default function AdminPage() {
                 </div>
                 <div className="admin-form-actions">
                   <label>Alterar Status:
-                    <select value={selectedOrder.status} onChange={(e
+                    <select value={selectedOrder.status} onChange={(e) => void updateOrderStatus(selectedOrder, e.target.value)}>
+                      {orderStatuses.map(([val, lbl]) => <option value={val} key={val}>{lbl}</option>)}
+                    </select>
+                  </label>
+                  <button type="button" className="button button-outline" onClick={() => setSelectedOrder(null)}>Fechar</button>
+                </div>
+              </div>
+            ) : (
+              <div className="admin-orders-list">
+                {orders.length === 0 ? <p className="admin-muted">Nenhum pedido recebido ainda.</p> : orders.map(orderCard)}
+              </div>
+            )}
+          </section>
+        ) : null}
+
+        {section === "customers" ? (
+          <section className="admin-section">
+            <div className="admin-toolbar">
+              <input
+                placeholder="Buscar por nome, e-mail ou telefone..."
+                value={customerQuery}
+                onChange={(e) => setCustomerQuery(e.target.value)}
+              />
+              <button className="button button-outline" onClick={exportCustomers} disabled={exportingCustomers}>
+                {exportingCustomers ? "Exportando CSV..." : "Exportar Clientes (CSV)"}
+              </button>
+            </div>
+            <div className="admin-table-wrapper">
+              <table className="admin-table">
+                <thead>
+                  <tr>
+                    <th>Nome</th>
+                    <th>E-mail</th>
+                    <th>Telefone</th>
+                    <th>Cadastrado em</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {customers.map((c) => (
+                    <tr key={c.id}>
+                      <td><strong>{c.name}</strong></td>
+                      <td>{c.email}</td>
+                      <td>{c.phone}</td>
+                      <td>{new Date(c.createdAt).toLocaleDateString("pt-BR")}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {customerCursor ? (
+              <div className="admin-load-more">
+                <button className="button button-outline" onClick={() => void loadCustomers(customerQuery, customerCursor, true)} disabled={loadingCustomers}>
+                  {loadingCustomers ? "Carregando..." : "Carregar mais"}
+                </button>
+              </div>
+            ) : null}
+          </section>
+        ) : null}
+
+        {section === "inventory" ? (
+          <section className="admin-section">
+            <p className="admin-muted">Produtos ativos com estoque igual ou abaixo do mínimo configurado.</p>
+            <div className="admin-table-wrapper">
+              <table className="admin-table">
+                <thead>
+                  <tr>
+                    <th>Produto</th>
+                    <th>Estoque Atual</th>
+                    <th>Estoque Mínimo</th>
+                    <th>Status</th>
+                    <th>Ações</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {productsForSection.map((product) => (
+                    <tr key={product.id}>
+                      <td><strong>{product.icon} {product.name}</strong></td>
+                      <td><span className="admin-badge-alert">{product.stock} un.</span></td>
+                      <td>{product.minStock} un.</td>
+                      <td>Estoque Baixo</td>
+                      <td>
+                        <button className="button button-outline" onClick={() => { setSection("products"); startEdit(product); }}>Editar Estoque</button>
+                      </td>
+                    </tr>
+                  ))}
+                  {productsForSection.length === 0 ? (
+                    <tr><td colSpan={5} className="admin-muted">Nenhum produto com estoque crítico no momento.</td></tr>
+                  ) : null}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        ) : null}
+
+        {section === "delivery" ? (
+          <section className="admin-section">
+            <div className="admin-toolbar">
+              <button className="button button-primary" onClick={() => startZoneEdit()}>+ Nova Faixa de CEP / Entrega</button>
+            </div>
+
+            {zoneFormOpen ? (
+              <form className="admin-form" onSubmit={saveZone}>
+                <div className="admin-form-header">
+                  <h2>{zoneForm.id ? "Editar Faixa de Entrega" : "Nova Faixa de Entrega"}</h2>
+                  <button type="button" className="button button-quiet" onClick={() => setZoneFormOpen(false)}>Fechar</button>
+                </div>
+                <div className="admin-form-grid">
+                  <label>Nome da Região / Bairro
+                    <input required value={zoneForm.name} onChange={(e) => setZoneForm((c) => ({ ...c, name: e.target.value }))} placeholder="Ex: Centro / Fortaleza" />
+                  </label>
+                  <label>CEP Inicial
+                    <input required maxLength={9} value={zoneForm.postalCodeStart} onChange={(e) => setZoneForm((c) => ({ ...c, postalCodeStart: e.target.value }))} placeholder="60000000" />
+                  </label>
+                  <label>CEP Final
+                    <input required maxLength={9} value={zoneForm.postalCodeEnd} onChange={(e) => setZoneForm((c) => ({ ...c, postalCodeEnd: e.target.value }))} placeholder="60099999" />
+                  </label>
+                  <label>Preço do Frete (R$)
+                    <input required value={zoneForm.price} onChange={(e) => setZoneForm((c) => ({ ...c, price: e.target.value }))} placeholder="10,00" />
+                  </label>
+                  <label className="admin-checkbox-label">
+                    <input type="checkbox" checked={zoneForm.active} onChange={(e) => setZoneForm((c) => ({ ...c, active: e.target.checked }))} />
+                    Zona ativa
+                  </label>
+                </div>
+                <div className="admin-form-actions">
+                  <button className="button button-primary" disabled={loading}>{loading ? "Salvando..." : "Salvar faixa"}</button>
+                  <button type="button" className="button button-outline" onClick={() => setZoneFormOpen(false)}>Cancelar</button>
+                </div>
+              </form>
+            ) : null}
+
+            <div className="admin-table-wrapper">
+              <table className="admin-table">
+                <thead>
+                  <tr>
+                    <th>Região</th>
+                    <th>Faixa de CEP</th>
+                    <th>Valor do Frete</th>
+                    <th>Status</th>
+                    <th>Ações</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {deliveryZones.map((zone) => (
+                    <tr key={zone.id}>
+                      <td><strong>{zone.name}</strong></td>
+                      <td>{zone.postalCodeStart} até {zone.postalCodeEnd}</td>
+                      <td>{money(zone.priceInCents)}</td>
+                      <td>{zone.active ? "Ativo" : "Inativo"}</td>
+                      <td>
+                        <div className="admin-row-actions">
+                          <button className="button button-outline" onClick={() => startZoneEdit(zone)}>Editar</button>
+                          <button className="button button-quiet" onClick={() => void toggleZone(zone)}>{zone.active ? "Desativar" : "Ativar"}</button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                  {deliveryZones.length === 0 ? (
+                    <tr><td colSpan={5} className="admin-muted">Nenhuma zona de entrega cadastrada.</td></tr>
+                  ) : null}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        ) : null}
+
+        {section === "revenue" ? (
+          <section className="admin-section">
+            <div className="admin-toolbar">
+              <div className="admin-period-buttons">
+                {[
+                  ["7", "Últimos 7 dias"],
+                  ["30", "Últimos 30 dias"],
+                  ["90", "Últimos 90 dias"],
+                  ["all", "Todo o período"],
+                ].map(([val, lbl]) => (
+                  <button
+                    key={val}
+                    type="button"
+                    className={`button ${salesQuery === `days=${val}` ? "button-primary" : "button-outline"}`}
+                    onClick={() => setSalesQuery(`days=${val}`)}
+                  >
+                    {lbl}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="admin-metric-grid">
+              <article className="admin-metric-card"><span>Receita Total</span><strong>{money(sales?.revenueInCents ?? 0)}</strong><small>{sales?.periodLabel}</small></article>
+              <article className="admin-metric-card"><span>Lucro Bruto</span><strong>{sales?.grossProfitInCents === null || sales?.grossProfitInCents === undefined ? "Indisponível" : money(sales.grossProfitInCents)}</strong><small>Margem: {sales?.grossMarginPercent ?? 0}%</small></article>
+              <article className="admin-metric-card"><span>Total de Pedidos</span><strong>{sales?.orderCount ?? 0}</strong><small>No período selecionado</small></article>
+            </div>
+
+            <div className="admin-panel">
+              <div className="admin-panel-heading"><h2>Desempenho de Produtos Vendidos</h2></div>
+              <div className="admin-table-wrapper">
+                <table className="admin-table">
+                  <thead>
+                    <tr>
+                      <th>Produto</th>
+                      <th>Qtd Vendida</th>
+                      <th>Receita Gerada</th>
+                      <th>Lucro Bruto</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(sales?.productsSold ?? []).map((p) => (
+                      <tr key={p.productId ?? p.name}>
+                        <td><strong>{p.name}</strong></td>
+                        <td>{p.quantitySold} un.</td>
+                        <td>{money(p.revenueInCents)}</td>
+                        <td>{p.grossProfitInCents !== null ? money(p.grossProfitInCents) : "Custo não cadastrado"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+        ) : null}
+
+        {section === "company" ? (
+          <section className="admin-section">
+            <form className="admin-form" onSubmit={saveCompany}>
+              <h2>Configurações da Loja e Dados da Empresa</h2>
+              <div className="admin-form-grid">
+                <label>Nome Fantasia
+                  <input required value={settings.name} onChange={(e) => setSettings((c) => ({ ...c, name: e.target.value }))} />
+                </label>
+                <label>Razão Social
+                  <input value={settings.legalName} onChange={(e) => setSettings((c) => ({ ...c, legalName: e.target.value }))} />
+                </label>
+                <label>CNPJ / CPF
+                  <input value={settings.document} onChange={(e) => setSettings((c) => ({ ...c, document: e.target.value }))} />
+                </label>
+                <label>E-mail de Contato
+                  <input type="email" value={settings.email} onChange={(e) => setSettings((c) => ({ ...c, email: e.target.value }))} />
+                </label>
+                <label>Telefone
+                  <input value={settings.phone} onChange={(e) => setSettings((c) => ({ ...c, phone: e.target.value }))} />
+                </label>
+                <label>WhatsApp
+                  <input value={settings.whatsapp} onChange={(e) => setSettings((c) => ({ ...c, whatsapp: e.target.value }))} />
+                </label>
+                <label>CEP
+                  <input value={settings.postalCode} onChange={(e) => setSettings((c) => ({ ...c, postalCode: e.target.value }))} />
+                </label>
+                <label>Endereço
+                  <input value={settings.address} onChange={(e) => setSettings((c) => ({ ...c, address: e.target.value }))} />
+                </label>
+                <label>Cidade
+                  <input value={settings.city} onChange={(e) => setSettings((c) => ({ ...c, city: e.target.value }))} />
+                </label>
+                <label>Estado (UF)
+                  <input maxLength={2} value={settings.state} onChange={(e) => setSettings((c) => ({ ...c, state: e.target.value }))} />
+                </label>
+                <label>Instagram
+                  <input value={settings.instagram} onChange={(e) => setSettings((c) => ({ ...c, instagram: e.target.value }))} placeholder="@rachidheadshop" />
+                </label>
+              </div>
+              <div className="admin-form-actions">
+                <button className="button button-primary" disabled={loading}>{loading ? "Salvando..." : "Salvar dados da empresa"}</button>
+              </div>
+            </form>
+          </section>
+        ) : null}
+        </section>
+      </div>
+    </main>
+  );
+}
