@@ -1,3 +1,7 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 /* Estilos para a tabela e barras de ferramentas do painel administrativo */
 .admin-toolbar {
   display: flex;
