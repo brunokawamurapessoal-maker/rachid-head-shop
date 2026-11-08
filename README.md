@@ -1,13 +1,15 @@
 # Rachid Head Shop
 
-Loja online feita com Next.js, React, TypeScript e Prisma. O catálogo e os pedidos são persistidos em SQLite.
+Loja online feita com Next.js, React, TypeScript e Prisma. O catálogo, os pedidos e as contas são persistidos em PostgreSQL gerenciado pelo Supabase.
 
 ## Requisitos
 
-- Node.js 20.9 ou superior
+- Node.js 22.5 ou superior
 - npm
 
 ## Executar localmente
+
+Copie o exemplo, configure `DATABASE_URL` (pooler de transação do Supabase) e `DIRECT_URL` (pooler de sessão) no `.env`, depois rode:
 
 ```powershell
 npm install
@@ -16,9 +18,7 @@ npm run db:setup
 npm run dev
 ```
 
-Abra <http://localhost:3000>. O script `db:setup` cria as tabelas e carrega as categorias e os 14 produtos iniciais. Para recriar ou atualizar os dados do catálogo, use `npm run db:seed`.
-
-O SQLite fica em `prisma/dev.db` e não é enviado ao GitHub. O arquivo `.env` também é privado. A URL de conexão pode ser alterada em `DATABASE_URL`.
+Abra <http://localhost:3000>. Para uma instalação nova, `db:setup` aplica as migrações e carrega os produtos iniciais. Para preservar os dados do SQLite que já estava em `prisma/dev.db`, rode `npm run db:deploy`, confira o arquivo com `npm run db:import-sqlite -- --dry-run` e depois rode `npm run db:import-sqlite` (não rode `db:setup` antes, pois o importador exige um destino vazio). O importador lê o arquivo diretamente, não cria exportação com dados pessoais e aborta se o destino já contiver registros. Não apague o arquivo SQLite até confirmar os dados no Supabase.
 
 ## Recursos
 
@@ -56,7 +56,7 @@ Em `/admin` → Receita, selecione os últimos 7, 15, 30, 120 ou 240 dias ou um 
 
 O site **não processa pagamentos**. Pix, cartão e boleto são registrados somente como a preferência do cliente; a confirmação precisa ser feita manualmente pela loja. Não envie nem armazene dados de cartão neste aplicativo. Para cobrar de verdade, integre um provedor de pagamentos e confirme o resultado por webhook.
 
-Esta configuração SQLite é voltada a desenvolvimento ou a um servidor persistente de instância única. Não use o arquivo SQLite local como banco de produção em hospedagens serverless ou com disco efêmero. Para esses cenários, migre para um PostgreSQL gerenciado antes do deploy.
+Em produção na Vercel, configure `DATABASE_URL`, `DIRECT_URL`, `ADMIN_PASSWORD`, `ADMIN_SESSION_SECRET` e `CUSTOMER_SESSION_SECRET` como variáveis privadas do projeto para os ambientes Production, Preview e Development apropriados. Copie os endereços de conexão com pooler do botão **Connect** no Supabase: use o pooler de transação (porta 6543) para `DATABASE_URL` e o pooler de sessão (porta 5432) para `DIRECT_URL`. As senhas na URL precisam estar codificadas para URL. Nunca publique URLs do banco, senhas ou segredos no GitHub. Execute `npm run db:deploy` após configurar as variáveis e antes de abrir o site. Configure também as variáveis SMTP se for habilitar recuperação de senha por e-mail.
 
 As tarifas locais são definidas pela loja nas faixas de CEP do painel administrativo. O frete terceirizado só é confirmado pela loja no WhatsApp.
 
@@ -72,6 +72,8 @@ As tarifas locais são definidas pela loja nas faixas de CEP do painel administr
 | `npm run db:setup` | Criar o banco e inserir dados iniciais |
 | `npm run db:seed` | Recarregar categorias e produtos iniciais |
 | `npm run db:studio` | Abrir o Prisma Studio |
+| `npm run db:deploy` | Aplicar migrações no PostgreSQL |
+| `npm run db:import-sqlite` | Importar o SQLite local para um PostgreSQL vazio |
 
 ## API
 
