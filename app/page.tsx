@@ -42,14 +42,10 @@ type CustomerProfile = {
   state: string;
 };
 type StoreInfo = { name: string; whatsapp: string; city: string; state: string };
-type ChatMessage = { role: "user" | "assistant"; content: string };
 
 const money = (value: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
 
-const initialMessages: ChatMessage[] = [
-  { role: "assistant", content: "Olá! Sou o assistente da Rachid Head Shop. Como posso ajudar?" },
-];
 const emptyCustomer: CustomerProfile = {
   id: "", name: "", email: "", phone: "", postalCode: "", address: "",
   addressNumber: "", neighborhood: "", deliveryReference: "", city: "", state: "",
@@ -94,10 +90,6 @@ export default function Home() {
   const [cashChangeFor, setCashChangeFor] = useState("");
   const [orderError, setOrderError] = useState("");
   const [orderResult, setOrderResult] = useState<{ id: string; total: number; whatsappUrl: string; shippingPending: boolean } | null>(null);
-  const [chatOpen, setChatOpen] = useState(false);
-  const [messages, setMessages] = useState<ChatMessage[]>(initialMessages);
-  const [chatInput, setChatInput] = useState("");
-  const [chatLoading, setChatLoading] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -360,31 +352,6 @@ export default function Home() {
     }
   }
 
-  async function sendMessage(content = chatInput) {
-    const text = content.trim();
-    if (!text || chatLoading) return;
-    setChatInput("");
-    setMessages((current) => [...current, { role: "user", content: text }]);
-    setChatLoading(true);
-    try {
-      const response = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: text }),
-      });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.erro || "Não foi possível responder agora.");
-      setMessages((current) => [...current, { role: "assistant", content: data.resposta }]);
-    } catch (error) {
-      setMessages((current) => [...current, {
-        role: "assistant",
-        content: error instanceof Error ? error.message : "Não foi possível responder agora.",
-      }]);
-    } finally {
-      setChatLoading(false);
-    }
-  }
-
   return (
     <>
       <header className="site-header">
@@ -565,15 +532,10 @@ export default function Home() {
         <div className="drawer-footer"><div className="drawer-subtotal"><span>Subtotal</span><strong>{money(subtotal)}</strong></div><p>O frete é calculado pelo CEP no checkout.</p><button className="button button-primary" onClick={beginCheckout} disabled={!cartItems.length}>Continuar para checkout <span>↗</span></button></div>
       </aside></div> : null}
 
-      <div className="chat-launcher">
-        {chatOpen ? <div className="chat-panel">
-          <div className="chat-header"><span className="chat-avatar">R</span><span><strong>Assistente Rachid</strong><small>Atendimento da loja</small></span><button onClick={() => setChatOpen(false)} aria-label="Fechar chat">×</button></div>
-          <div className="chat-messages">{messages.map((message, index) => <p className={`chat-message ${message.role}`} key={`${index}-${message.content}`}>{message.content}</p>)}{chatLoading ? <p className="chat-message assistant">Escrevendo...</p> : null}</div>
-          {messages.length === 1 ? <div className="quick-questions">{["Horários", "Frete e entrega", "Formas de pagamento"].map((question) => <button key={question} onClick={() => void sendMessage(question)}>{question}</button>)}</div> : null}
-          <form className="chat-form" onSubmit={(event) => { event.preventDefault(); void sendMessage(); }}><input value={chatInput} onChange={(event) => setChatInput(event.target.value)} placeholder="Escreva sua mensagem" maxLength={500} aria-label="Mensagem" /><button disabled={chatLoading || !chatInput.trim()} aria-label="Enviar mensagem">↑</button></form>
-        </div> : null}
-        <button className="chat-toggle" onClick={() => setChatOpen(!chatOpen)} aria-label={chatOpen ? "Fechar assistente" : "Abrir assistente"}>{chatOpen ? "×" : "✳"}</button>
-      </div>
+      {whatsappHref(storeInfo.whatsapp) ? <a className="whatsapp-float" href={whatsappHref(storeInfo.whatsapp)} target="_blank" rel="noreferrer" aria-label="Fale com a loja pelo WhatsApp" title="Fale com a loja pelo WhatsApp">
+        <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M16.04 3C8.88 3 3.06 8.82 3.06 15.98c0 2.29.6 4.52 1.74 6.5L3 29l6.69-1.75a12.94 12.94 0 0 0 6.35 1.66h.01c7.16 0 12.98-5.82 12.98-12.98A12.9 12.9 0 0 0 25.23 6.7 12.9 12.9 0 0 0 16.04 3Zm0 23.7h-.01a10.75 10.75 0 0 1-5.48-1.5l-.39-.23-3.97 1.04 1.06-3.87-.25-.4a10.73 10.73 0 0 1-1.65-5.76c0-5.93 4.83-10.76 10.77-10.76 2.87 0 5.57 1.12 7.6 3.15a10.7 10.7 0 0 1 3.15 7.61c0 5.94-4.83 10.77-10.76 10.77Zm5.9-8.06c-.32-.16-1.9-.94-2.2-1.05-.3-.1-.51-.16-.72.16-.22.32-.83 1.05-1.02 1.27-.19.21-.37.24-.69.08-.32-.16-1.36-.5-2.59-1.6-.96-.86-1.61-1.92-1.8-2.24-.19-.32-.02-.49.14-.65.14-.14.32-.37.48-.56.16-.19.21-.32.32-.54.1-.21.05-.4-.03-.56-.08-.16-.72-1.74-.99-2.39-.26-.63-.53-.54-.72-.55h-.61c-.21 0-.56.08-.85.4-.3.32-1.12 1.1-1.12 2.67s1.15 3.09 1.31 3.3c.16.21 2.26 3.46 5.47 4.85.76.33 1.35.53 1.81.68.76.24 1.45.21 2 .13.61-.09 1.9-.78 2.17-1.53.27-.75.27-1.39.19-1.53-.08-.13-.29-.21-.61-.37Z" /></svg>
+        <span>WhatsApp</span>
+      </a> : null}
       {toast ? <div className="toast" role="status">{toast}</div> : null}
     </>
   );

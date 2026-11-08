@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
+import { ChangeEvent, FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 
 type Category = { id: string; name: string; icon: string };
@@ -182,7 +182,11 @@ export default function AdminPage() {
   const [form, setForm] = useState<ProductForm>(emptyProduct);
   const [editingId, setEditingId] = useState("");
   const [formOpen, setFormOpen] = useState(false);
+  const [categoryFormOpen, setCategoryFormOpen] = useState(false);
+  const [categoryName, setCategoryName] = useState("");
+  const [categoryIcon, setCategoryIcon] = useState("📦");
   const productFormRef = useRef<HTMLFormElement>(null);
+  const [uploadingImages, setUploadingImages] = useState(false);
   const [promotionProduct, setPromotionProduct] = useState<Product | null>(null);
   const [promotionValue, setPromotionValue] = useState("10");
   const [loading, setLoading] = useState(false);
@@ -281,12 +285,16 @@ export default function AdminPage() {
     setEditingId("");
     setForm({ ...emptyProduct, categoryId: categories[0]?.id ?? "" });
     setFormOpen(true);
+    setCategoryFormOpen(categories.length === 0);
+    setCategoryName("");
+    setCategoryIcon("📦");
     setError("");
     setNotice("");
   }
 
   function startEdit(product: Product) {
     setEditingId(product.id);
+    setCategoryFormOpen(false);
     setForm({
       name: product.name,
       slug: product.slug,
@@ -304,6 +312,57 @@ export default function AdminPage() {
     setFormOpen(true);
     setError("");
     setNotice("");
+  }
+
+  async function uploadProductImages(event: ChangeEvent<HTMLInputElement>) {
+    const input = event.currentTarget;
+    const files = Array.from(input.files ?? []);
+    input.value = "";
+    if (!files.length) return;
+
+    const currentImages = form.imageUrls.split(/\r?\n/).map((url) => url.trim()).filter(Boolean);
+    if (currentImages.length + files.length > 10) {
+      setError("Cada produto pode ter no máximo 10 imagens.");
+      return;
+    }
+    const maxFileSize = 4 * 1024 * 1024;
+    const allowedTypes = ["image/jpeg", "image/png", "image/webp", "image/avif"];
+    const invalidFile = files.find((file) => !allowedTypes.includes(file.type) || file.size > maxFileSize);
+    if (invalidFile) {
+      setError(invalidFile.size > maxFileSize
+        ? `A imagem "${invalidFile.name}" excede o limite de 4 MB.`
+        : `O arquivo "${invalidFile.name}" não é JPEG, PNG, WebP ou AVIF.`);
+      return;
+    }
+
+    setUploadingImages(true);
+    setError("");
+    setNotice("");
+    let uploadedCount = 0;
+    try {
+      for (const file of files) {
+        const body = new FormData();
+        body.set("file", file);
+        const data = await requestJson("/api/admin/imagens", { method: "POST", body });
+        setForm((current) => ({
+          ...current,
+          imageUrls: [...current.imageUrls.split(/\r?\n/).map((url) => url.trim()).filter(Boolean), data.imageUrl].join("\n"),
+        }));
+        uploadedCount += 1;
+      }
+      setNotice(`${uploadedCount} imagem(ns) enviada(s). Salve o produto para publicar as alterações.`);
+    } catch (uploadError) {
+      setError(uploadError instanceof Error ? uploadError.message : "Não foi possível enviar as imagens.");
+    } finally {
+      setUploadingImages(false);
+    }
+  }
+
+  function removeProductImage(imageUrl: string) {
+    setForm((current) => ({
+      ...current,
+      imageUrls: current.imageUrls.split(/\r?\n/).map((url) => url.trim()).filter((url) => url && url !== imageUrl).join("\n"),
+    }));
   }
 
   async function saveProduct(event: FormEvent<HTMLFormElement>) {
@@ -330,6 +389,29 @@ export default function AdminPage() {
       await Promise.all([loadDashboard(), loadSales()]);
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : "Não foi possível salvar o produto.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function createCategory() {
+    setLoading(true);
+    setError("");
+    setNotice("");
+    try {
+      const data = await requestJson("/api/admin/categorias", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: categoryName, icon: categoryIcon }),
+      });
+      setCategories((current) => [...current, data.category].sort((a, b) => a.name.localeCompare(b.name, "pt-BR")));
+      setForm((current) => ({ ...current, categoryId: data.category.id }));
+      setCategoryName("");
+      setCategoryIcon("📦");
+      setCategoryFormOpen(false);
+      setNotice("Categoria cadastrada e selecionada.");
+    } catch (categoryError) {
+      setError(categoryError instanceof Error ? categoryError.message : "Não foi possível cadastrar a categoria.");
     } finally {
       setLoading(false);
     }
@@ -670,7 +752,7 @@ export default function AdminPage() {
           <section className="admin-section">
             <div className="admin-section-heading">
               <div><h2>{section === "inventory" ? "Estoque e alertas" : "Produtos"}</h2><p>{section === "inventory" ? "Produtos no limite mínimo ou abaixo dele precisam de reposição." : "Cadastre, edite, publique ou tire produtos da loja."}</p></div>
-              {section === "products" ? <button className="button button-primary" onClick={startCreate}>+ Novo produto</button> : null}
+              {section === "products" ? <div className="admin-product-actions"><button type="button" className="button button-outline" onClick={() => { setCategoryFormOpen((open) => !open); setCategoryName(""); setError(""); }}>{categoryFormOpen ? "Cancelar categoria" : "+ Nova categoria"}</button><button type="button" className="button button-primary" onClick={startCreate}>+ Novo produto</button></div> : null}
             </div>
             {promotionProduct ? (
               <form className="admin-product-form admin-promotion-editor" onSubmit={savePromotion}>
@@ -679,6 +761,16 @@ export default function AdminPage() {
                   <label>Desconto<select value={promotionValue} onChange={(event) => setPromotionValue(event.target.value)}><option value="0">Sem promoção</option>{[5, 10, 15, 20, 25, 30, 40, 50, 60, 70, 80, 90].map((percent) => <option value={percent} key={percent}>{percent}%</option>)}</select></label>
                   <p>Preço original: <strong>{money(promotionProduct.priceInCents)}</strong>{Number(promotionValue) > 0 ? <> · Preço promocional: <strong>{money(Math.max(1, Math.round(promotionProduct.priceInCents * (100 - Number(promotionValue)) / 100)))}</strong></> : null}</p>
                   <button className="button button-primary" disabled={loading}>{loading ? "Salvando..." : Number(promotionValue) === 0 ? "Remover promoção" : "Salvar promoção"}</button>
+                </div>
+              </form>
+            ) : null}
+            {section === "products" && categoryFormOpen ? (
+              <form className="admin-product-form admin-category-form" onSubmit={(event) => { event.preventDefault(); void createCategory(); }}>
+                <div className="admin-form-heading"><div><h3>Nova categoria</h3><p>Cadastre a categoria e selecione-a no produto.</p></div><button type="button" className="text-button" onClick={() => setCategoryFormOpen(false)}>Fechar</button></div>
+                <div className="admin-category-create">
+                  <label>Nome da categoria<input required minLength={2} maxLength={80} value={categoryName} onChange={(event) => setCategoryName(event.target.value)} placeholder="Digite o nome da categoria" /></label>
+                  <label>Ícone<input maxLength={16} value={categoryIcon} onChange={(event) => setCategoryIcon(event.target.value)} aria-label="Ícone da categoria" /></label>
+                  <button type="submit" className="button button-primary" disabled={loading || categoryName.trim().length < 2}>{loading ? "Salvando..." : "Adicionar categoria"}</button>
                 </div>
               </form>
             ) : null}
@@ -692,14 +784,38 @@ export default function AdminPage() {
                   <label>Preço de custo (R$)<input type="number" min="0" max="1000000" step="0.01" value={form.cost} onChange={(event) => setForm({ ...form, cost: event.target.value })} placeholder="Deixe vazio se desconhecido" /></label>
                   <label>Estoque atual<input required type="number" min="0" max="1000000" step="1" value={form.stock} onChange={(event) => setForm({ ...form, stock: event.target.value })} /></label>
                   <label>Quantidade mínima<input required type="number" min="0" max="1000000" step="1" value={form.minStock} onChange={(event) => setForm({ ...form, minStock: event.target.value })} /></label>
-                  <label>Categoria<select required value={form.categoryId} onChange={(event) => setForm({ ...form, categoryId: event.target.value })}><option value="">Selecione</option>{categories.map((category) => <option key={category.id} value={category.id}>{category.icon} {category.name}</option>)}</select></label>
+                  <div className="admin-category-field">
+                    <label>Categoria<select required value={form.categoryId} onChange={(event) => setForm({ ...form, categoryId: event.target.value })}><option value="">Selecione</option>{categories.map((category) => <option key={category.id} value={category.id}>{category.icon} {category.name}</option>)}</select></label>
+                    <button type="button" className="text-button admin-category-toggle" onClick={() => { setCategoryFormOpen(true); setCategoryName(""); setError(""); }}>+ Cadastrar categoria</button>
+                  </div>
                   <label>Ícone (emoji)<input required maxLength={16} value={form.icon} onChange={(event) => setForm({ ...form, icon: event.target.value })} /></label>
                   <label>Selo (opcional)<input maxLength={32} placeholder="NOVO, TOP..." value={form.badge} onChange={(event) => setForm({ ...form, badge: event.target.value })} /></label>
                   <label className="admin-checkbox"><input type="checkbox" checked={form.active} onChange={(event) => setForm({ ...form, active: event.target.checked })} /> Produto ativo na loja</label>
                   <label className="admin-form-wide">Descrição<textarea maxLength={1000} rows={3} value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} /></label>
-                  <label className="admin-form-wide">Repositório de imagens · URLs, uma por linha<textarea maxLength={20000} rows={4} value={form.imageUrls} onChange={(event) => setForm({ ...form, imageUrls: event.target.value })} placeholder="https://seu-dominio.com/imagem-produto.jpg" /><small>Até 10 imagens por produto. As imagens precisam estar disponíveis publicamente em uma URL HTTPS ou HTTP.</small></label>
+                  <div className="admin-form-wide admin-image-uploader">
+                    <label htmlFor="product-images">Imagens do produto</label>
+                    <input
+                      id="product-images"
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp,image/avif"
+                      multiple
+                      disabled={uploadingImages || form.imageUrls.split(/\r?\n/).filter(Boolean).length >= 10}
+                      onChange={(event) => void uploadProductImages(event)}
+                    />
+                    <small>{uploadingImages ? "Enviando imagens..." : "Escolha arquivos do computador. JPEG, PNG, WebP ou AVIF; até 4 MB por arquivo e 10 imagens por produto."}</small>
+                    {form.imageUrls ? (
+                      <ul className="admin-image-list">
+                        {form.imageUrls.split(/\r?\n/).map((imageUrl) => imageUrl.trim()).filter(Boolean).map((imageUrl) => (
+                          <li key={imageUrl}>
+                            <a href={imageUrl} target="_blank" rel="noreferrer">Ver imagem</a>
+                            <button type="button" className="text-button" onClick={() => removeProductImage(imageUrl)}>Remover</button>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : null}
+                  </div>
                 </div>
-                <button className="button button-primary" disabled={loading}>{loading ? "Salvando..." : "Salvar produto"}</button>
+                <button className="button button-primary" disabled={loading || uploadingImages}>{loading ? "Salvando..." : "Salvar produto"}</button>
               </form>
             ) : null}
             {loading && !products.length ? <p className="admin-muted">Carregando produtos...</p> : null}

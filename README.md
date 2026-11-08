@@ -29,7 +29,7 @@ Abra <http://localhost:3000>. Para uma instalação nova, `db:setup` aplica as m
 - Resumo do pedido preparado para envio ao WhatsApp cadastrado pela empresa
 - Registro persistente de pedidos, com preço recalculado no servidor
 - Consulta de saúde em `/api/health`
-- Assistente de perguntas frequentes sem expor chaves de terceiros no navegador
+- Upload de imagens de produtos para o Supabase Storage, sem digitar URLs no painel
 - Painel administrativo protegido para gerenciar produtos e acompanhar pedidos
 
 ## Área administrativa
@@ -42,7 +42,7 @@ $bytes = [byte[]]::new(32)
 [Convert]::ToBase64String($bytes)
 ```
 
-Use o valor gerado para `ADMIN_SESSION_SECRET` e configure a senha administrativa separadamente. Gere outro segredo aleatório para `CUSTOMER_SESSION_SECRET`. Em produção, configure essas variáveis como segredos no provedor de hospedagem — nunca as publique no repositório. A sessão administrativa expira após 8 horas e a sessão do cliente após 30 dias. O painel permite gerenciar produtos, imagens por URLs públicas (uma por linha), custo, estoque mínimo, faixas locais de CEP, dados da empresa e pedidos. Em Estoque, produtos ativos com quantidade igual ou inferior ao mínimo aparecem como alerta. Ao registrar um pedido, o estoque é reservado; ao cancelar, a quantidade é devolvida. Reativar um pedido tenta reservar o estoque novamente.
+Use o valor gerado para `ADMIN_SESSION_SECRET` e configure a senha administrativa separadamente. Gere outro segredo aleatório para `CUSTOMER_SESSION_SECRET`. Em produção, configure essas variáveis como segredos no provedor de hospedagem — nunca as publique no repositório. A sessão administrativa expira após 8 horas e a sessão do cliente após 30 dias. O painel permite gerenciar produtos, categorias (crie uma categoria no próprio formulário de produto), imagens, custo, estoque mínimo, faixas locais de CEP, dados da empresa e pedidos. Para imagens, escolha arquivos JPEG, PNG, WebP ou AVIF de até 4 MB no computador; o envio ao bucket do Supabase Storage é feito pelo servidor e só pode ser iniciado no painel autenticado. O bucket `product-images` precisa estar configurado como público para exibir as imagens no catálogo; a chave de serviço fica apenas no servidor. Em Estoque, produtos ativos com quantidade igual ou inferior ao mínimo aparecem como alerta. Ao registrar um pedido, o estoque é reservado; ao cancelar, a quantidade é devolvida. Reativar um pedido tenta reservar o estoque novamente.
 
 Clientes criam conta em `/cliente` com e-mail, CPF válido, telefone e senha, salvam o endereço e consultam seus próprios pedidos. O CPF é armazenado como HMAC, não em texto simples; contas existentes precisam cadastrá-lo no perfil após entrar. A recuperação exige e-mail e CPF correspondentes e envia um código de uso único, válido por 10 minutos, por SMTP. O código aceita no máximo cinco tentativas; solicitações são limitadas e uma redefinição invalida as sessões anteriores. Para habilitar o envio pelo Gmail, crie uma senha de app e configure `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD` e `SMTP_FROM` em `.env` ou nos segredos do servidor. Nunca use nem publique a senha normal da conta Google.
 
@@ -56,7 +56,7 @@ Em `/admin` → Receita, selecione os últimos 7, 15, 30, 120 ou 240 dias ou um 
 
 O site **não processa pagamentos**. Pix, cartão e boleto são registrados somente como a preferência do cliente; a confirmação precisa ser feita manualmente pela loja. Não envie nem armazene dados de cartão neste aplicativo. Para cobrar de verdade, integre um provedor de pagamentos e confirme o resultado por webhook.
 
-Em produção na Vercel, configure `DATABASE_URL`, `DIRECT_URL`, `ADMIN_PASSWORD`, `ADMIN_SESSION_SECRET` e `CUSTOMER_SESSION_SECRET` como variáveis privadas do projeto para os ambientes Production, Preview e Development apropriados. Copie os endereços de conexão com pooler do botão **Connect** no Supabase: use o pooler de transação (porta 6543) para `DATABASE_URL` e o pooler de sessão (porta 5432) para `DIRECT_URL`. As senhas na URL precisam estar codificadas para URL. Nunca publique URLs do banco, senhas ou segredos no GitHub. Execute `npm run db:deploy` após configurar as variáveis e antes de abrir o site. Configure também as variáveis SMTP se for habilitar recuperação de senha por e-mail.
+Em produção na Vercel, configure `DATABASE_URL`, `DIRECT_URL`, `ADMIN_PASSWORD`, `ADMIN_SESSION_SECRET`, `CUSTOMER_SESSION_SECRET`, `SUPABASE_URL` e `SUPABASE_SERVICE_ROLE_KEY` como variáveis privadas do projeto para os ambientes apropriados. Configure também `SUPABASE_STORAGE_BUCKET=product-images` e crie no Supabase Storage um bucket público com esse nome. A chave de serviço deve ficar exclusivamente no servidor; nunca use uma chave `service_role` ou `sb_secret_` no navegador nem a publique no GitHub. Copie os endereços de conexão com pooler do botão **Connect** no Supabase: use o pooler de transação (porta 6543) para `DATABASE_URL` e o pooler de sessão (porta 5432) para `DIRECT_URL`. As senhas na URL precisam estar codificadas para URL. Nunca publique URLs do banco, senhas ou segredos no GitHub. Execute `npm run db:deploy` após configurar as variáveis e antes de abrir o site. Configure também as variáveis SMTP se for habilitar recuperação de senha por e-mail.
 
 As tarifas locais são definidas por bairro/região nas faixas de CEP do painel administrativo. Para bairros com faixas não contínuas, crie mais de uma faixa com o mesmo nome. O frete terceirizado só é confirmado pela loja no WhatsApp.
 
@@ -81,7 +81,7 @@ As tarifas locais são definidas por bairro/região nas faixas de CEP do painel 
 - `GET /api/catalogo/produtos` — categorias e produtos ativos
 - `GET /api/frete?cep=60000000` — valida CEP e retorna as opções locais configuradas
 - `POST /api/pedido` — registrar um pedido autenticado; os preços e a tarifa local são recalculados no servidor
+- `POST /api/admin/categorias` — cadastrar categoria, restrito ao administrador
 - `/api/cliente/*` — autenticação, perfil e histórico privado do cliente
-- `POST /api/chat` — resposta para perguntas frequentes
 
 O arquivo `.env.example` documenta as variáveis disponíveis. Nunca publique valores reais de chaves ou credenciais.
