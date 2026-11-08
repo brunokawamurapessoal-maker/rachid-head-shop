@@ -476,12 +476,16 @@ export default function AdminPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: categoryName, icon: categoryIcon }),
       });
-      setCategories((current) => [...current, data.category].sort((a, b) => a.name.localeCompare(b.name, "pt-BR")));
+      setCategories((current) => {
+        const byId = new Map(current.map((category) => [category.id, category]));
+        byId.set(data.category.id, data.category);
+        return [...byId.values()].sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+      });
       setForm((current) => ({ ...current, categoryId: data.category.id }));
       setCategoryName("");
       setCategoryIcon("📦");
       setCategoryFormOpen(false);
-      setNotice("Categoria cadastrada e selecionada.");
+      setNotice(data.created ? "Categoria cadastrada e selecionada." : "Essa categoria já existia e foi selecionada.");
     } catch (categoryError) {
       setError(categoryError instanceof Error ? categoryError.message : "Não foi possível cadastrar a categoria.");
     } finally {

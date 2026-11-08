@@ -37,16 +37,16 @@ export async function POST(request: NextRequest) {
   try {
     const existing = await prisma.category.findFirst({
       where: { name: { equals: name, mode: "insensitive" } },
-      select: { id: true },
+      select: { id: true, name: true, icon: true },
     });
     if (existing) {
-      return NextResponse.json({ erro: "Já existe uma categoria com esse nome." }, { status: 409 });
+      return NextResponse.json({ category: existing, created: false }, { status: 200 });
     }
 
     const category = await prisma.category.create({
       data: { id: randomUUID(), name, icon },
     });
-    return NextResponse.json({ category }, { status: 201 });
+    return NextResponse.json({ category, created: true }, { status: 201 });
   } catch (error) {
     console.error("Falha ao criar categoria:", error);
     return NextResponse.json({ erro: "Não foi possível criar a categoria." }, { status: 503 });
