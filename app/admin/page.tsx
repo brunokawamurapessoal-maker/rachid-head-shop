@@ -733,13 +733,13 @@ export default function AdminPage() {
           <section className="admin-section">
             {section === "delivery" ? <>
               <div className="admin-section-heading">
-                <div><h2>Faixas de CEP e tarifas locais</h2><p>O CEP precisa pertencer à cidade cadastrada em Dados da empresa.</p></div>
+                <div><h2>Frete por bairro e faixa de CEP</h2><p>Cadastre cada bairro ou região com seus CEPs e tarifa. O CEP precisa pertencer à cidade cadastrada em Dados da empresa; faixas ativas não podem se sobrepor.</p></div>
                 <button className="button button-primary" onClick={() => startZoneEdit()}>+ Nova faixa</button>
               </div>
               {zoneFormOpen ? <form className="admin-product-form" onSubmit={saveZone}>
                 <div className="admin-form-heading"><h3>{zoneForm.id ? "Editar faixa" : "Nova faixa de entrega"}</h3><button type="button" className="text-button" onClick={() => setZoneFormOpen(false)}>Fechar</button></div>
                 <div className="admin-form-grid">
-                  <label>Nome da região<input required minLength={2} maxLength={80} placeholder="Centro, Zona Sul..." value={zoneForm.name} onChange={(event) => setZoneForm({ ...zoneForm, name: event.target.value })} /></label>
+                  <label>Bairro ou região<input required minLength={2} maxLength={80} placeholder="Centro, Meireles..." value={zoneForm.name} onChange={(event) => setZoneForm({ ...zoneForm, name: event.target.value })} /></label>
                   <label>CEP inicial<input required inputMode="numeric" minLength={8} maxLength={8} placeholder="60000000" value={zoneForm.postalCodeStart} onChange={(event) => setZoneForm({ ...zoneForm, postalCodeStart: event.target.value.replace(/\D/g, "").slice(0, 8) })} /></label>
                   <label>CEP final<input required inputMode="numeric" minLength={8} maxLength={8} placeholder="60999999" value={zoneForm.postalCodeEnd} onChange={(event) => setZoneForm({ ...zoneForm, postalCodeEnd: event.target.value.replace(/\D/g, "").slice(0, 8) })} /></label>
                   <label>Taxa de entrega (R$)<input required type="number" min="0" max="10000" step="0.01" value={zoneForm.price} onChange={(event) => setZoneForm({ ...zoneForm, price: event.target.value })} /></label>

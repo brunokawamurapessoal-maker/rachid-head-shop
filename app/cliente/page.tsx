@@ -135,7 +135,7 @@ export default function CustomerPage() {
         city: data.city,
         state: data.state,
       }));
-      setNotice(`CEP encontrado: ${data.city} — ${data.state}.`);
+      setNotice(`CEP encontrado: ${data.neighborhood ? `${data.neighborhood}, ` : ""}${data.city} — ${data.state}.`);
     } catch (lookupError) {
       setError(lookupError instanceof Error ? lookupError.message : "Não foi possível consultar o CEP.");
     } finally {

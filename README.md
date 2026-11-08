@@ -25,7 +25,7 @@ Abra <http://localhost:3000>. Para uma instalação nova, `db:setup` aplica as m
 - Catálogo vindo do banco de dados, busca e filtros por categoria
 - Carrinho salvo no navegador
 - Área do cliente com conta, endereço salvo e histórico de pedidos
-- Entrega local calculada por faixa de CEP e entrega terceirizada com valor combinado pelo WhatsApp
+- Entrega local por bairro/região e faixa de CEP, com entrega terceirizada cotada pelo WhatsApp
 - Resumo do pedido preparado para envio ao WhatsApp cadastrado pela empresa
 - Registro persistente de pedidos, com preço recalculado no servidor
 - Consulta de saúde em `/api/health`
@@ -46,7 +46,7 @@ Use o valor gerado para `ADMIN_SESSION_SECRET` e configure a senha administrativ
 
 Clientes criam conta em `/cliente` com e-mail, CPF válido, telefone e senha, salvam o endereço e consultam seus próprios pedidos. O CPF é armazenado como HMAC, não em texto simples; contas existentes precisam cadastrá-lo no perfil após entrar. A recuperação exige e-mail e CPF correspondentes e envia um código de uso único, válido por 10 minutos, por SMTP. O código aceita no máximo cinco tentativas; solicitações são limitadas e uma redefinição invalida as sessões anteriores. Para habilitar o envio pelo Gmail, crie uma senha de app e configure `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD` e `SMTP_FROM` em `.env` ou nos segredos do servidor. Nunca use nem publique a senha normal da conta Google.
 
-Visitantes também podem informar o CEP na landing page para consultar as opções de frete; para concluir um pedido, ainda é necessário entrar na conta. A tarifa local só é oferecida quando o CEP é da mesma cidade da empresa e corresponde a uma faixa ativa configurada em `/admin` → Entregas. A opção terceirizada deixa o frete pendente de cotação. Após registrar um pedido, o site abre um link do WhatsApp da empresa com os itens, endereço, pagamento, subtotal, frete e total preenchidos. O cliente ainda precisa tocar em **Enviar** no WhatsApp; o site não envia mensagens em nome do usuário.
+Visitantes também podem informar o CEP na landing page para consultar as opções de frete; o endereço retornado inclui o bairro quando informado pelo ViaCEP. Para concluir um pedido, ainda é necessário entrar na conta. Em `/admin` → Entregas, cadastre uma faixa ativa de CEP para cada bairro/região e informe a tarifa correspondente; faixas ativas sobrepostas são rejeitadas. A tarifa local só é oferecida quando o CEP é da mesma cidade da empresa e corresponde a uma faixa ativa. CEPs fora das faixas continuam podendo usar a opção terceirizada, com frete pendente de cotação. Após registrar um pedido, o site abre um link do WhatsApp da empresa com os itens, endereço, pagamento, subtotal, frete e total preenchidos. O cliente ainda precisa tocar em **Enviar** no WhatsApp; o site não envia mensagens em nome do usuário.
 
 Em `/admin` → Produtos, use **Promoção** no card para aplicar um desconto de 5% a 90%. A promoção altera o preço calculado pelo servidor e permanece ativa até ser removida pelo admin. O desconto aparece no card do catálogo e na seção Promoções. Ao entrar na área do cliente, o cliente também verá promoções de produtos associados a pedidos anteriores não cancelados.
 
@@ -58,7 +58,7 @@ O site **não processa pagamentos**. Pix, cartão e boleto são registrados some
 
 Em produção na Vercel, configure `DATABASE_URL`, `DIRECT_URL`, `ADMIN_PASSWORD`, `ADMIN_SESSION_SECRET` e `CUSTOMER_SESSION_SECRET` como variáveis privadas do projeto para os ambientes Production, Preview e Development apropriados. Copie os endereços de conexão com pooler do botão **Connect** no Supabase: use o pooler de transação (porta 6543) para `DATABASE_URL` e o pooler de sessão (porta 5432) para `DIRECT_URL`. As senhas na URL precisam estar codificadas para URL. Nunca publique URLs do banco, senhas ou segredos no GitHub. Execute `npm run db:deploy` após configurar as variáveis e antes de abrir o site. Configure também as variáveis SMTP se for habilitar recuperação de senha por e-mail.
 
-As tarifas locais são definidas pela loja nas faixas de CEP do painel administrativo. O frete terceirizado só é confirmado pela loja no WhatsApp.
+As tarifas locais são definidas por bairro/região nas faixas de CEP do painel administrativo. Para bairros com faixas não contínuas, crie mais de uma faixa com o mesmo nome. O frete terceirizado só é confirmado pela loja no WhatsApp.
 
 ## Comandos
 

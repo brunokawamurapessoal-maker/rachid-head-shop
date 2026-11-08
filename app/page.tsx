@@ -300,7 +300,7 @@ export default function Home() {
       const data = await response.json();
       if (!response.ok) throw new Error(data.erro || "Não foi possível calcular o frete.");
       setGuestShipping(data.opcoes);
-      setGuestDestination(`${data.city} — ${data.state}`);
+      setGuestDestination(`${data.neighborhood ? `${data.neighborhood}, ` : ""}${data.city} — ${data.state}`);
     } catch (error) {
       setGuestShippingError(error instanceof Error ? error.message : "Não foi possível calcular o frete.");
     } finally {

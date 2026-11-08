@@ -240,33 +240,23 @@ async function main() {
     }
 
     const imported = await prisma.$transaction(async (tx) => {
-      const results = [];
-      results.push(await tx.category.createMany({ data: categories }));
-      results.push(await tx.storeSettings.createMany({ data: storeSettings }));
-      results.push(await tx.customer.createMany({ data: customers }));
-      results.push(await tx.deliveryZone.createMany({ data: deliveryZones }));
-      results.push(await tx.product.createMany({ data: products }));
-      results.push(await tx.order.createMany({ data: orders }));
-      results.push(await tx.orderItem.createMany({ data: orderItems }));
-      results.push(await tx.customerRecoveryRequest.createMany({ data: recoveryRequests }));
-      return results.map((result) => result.count);
+      const importedCounts = {
+        categories: (await tx.category.createMany({ data: categories })).count,
+        products: (await tx.product.createMany({ data: products })).count,
+        orders: (await tx.order.createMany({ data: orders })).count,
+        orderItems: (await tx.orderItem.createMany({ data: orderItems })).count,
+        storeSettings: (await tx.storeSettings.createMany({ data: storeSettings })).count,
+        customers: (await tx.customer.createMany({ data: customers })).count,
+        deliveryZones: (await tx.deliveryZone.createMany({ data: deliveryZones })).count,
+        recoveryRequests: (await tx.customerRecoveryRequest.createMany({ data: recoveryRequests })).count,
+      };
+      const matchesSource = (Object.keys(sourceCounts) as (keyof typeof sourceCounts)[])
+        .every((key) => importedCounts[key] === sourceCounts[key]);
+      if (!matchesSource) throw new Error("The PostgreSQL import counts do not match the SQLite source.");
+      return importedCounts;
     }, { timeout: 120_000 });
 
-    const expectedCounts = [
-      categories.length,
-      products.length,
-      orders.length,
-      orderItems.length,
-      storeSettings.length,
-      customers.length,
-      deliveryZones.length,
-      recoveryRequests.length,
-    ];
-    if (imported.some((count, index) => count !== expectedCounts[index])) {
-      throw new Error("The PostgreSQL import counts do not match the SQLite source.");
-    }
-
-    console.log(JSON.stringify({ imported: sourceCounts }));
+    console.log(JSON.stringify({ imported }));
   } finally {
     await prisma.$disconnect();
   }
