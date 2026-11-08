@@ -22,6 +22,7 @@ type Product = {
   category: { name: string };
 };
 type OrderItem = { productName: string; quantity: number; unitPriceInCents: number };
+type Customer = { id: string; name: string; email: string; phone: string; createdAt: string };
 type Order = {
   id: string;
   status: string;
@@ -91,7 +92,7 @@ type DeliveryZone = {
   priceInCents: number;
   active: boolean;
 };
-type AdminSection = "dashboard" | "products" | "inventory" | "orders" | "delivery" | "revenue" | "company";
+type AdminSection = "dashboard" | "products" | "inventory" | "orders" | "delivery" | "customers" | "revenue" | "company";
 type ProductForm = {
   name: string;
   slug: string;
@@ -168,6 +169,12 @@ export default function AdminPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [customerSearch, setCustomerSearch] = useState("");
+  const [customerQuery, setCustomerQuery] = useState("");
+  const [customerCursor, setCustomerCursor] = useState<string | null>(null);
+  const [loadingCustomers, setLoadingCustomers] = useState(false);
+  const [exportingCustomers, setExportingCustomers] = useState(false);
   const [section, setSection] = useState<AdminSection>("dashboard");
   const [sales, setSales] = useState<SalesDashboard | null>(null);
   const [period, setPeriod] = useState("7");
@@ -223,6 +230,65 @@ export default function AdminPage() {
     }
   }, [salesQuery]);
 
+  const loadCustomers = useCallback(async (query: string, cursor?: string, append = false) => {
+    setLoadingCustomers(true);
+    setError("");
+    try {
+      const params = new URLSearchParams();
+      if (query) params.set("q", query);
+      if (cursor) params.set("cursor", cursor);
+      const data = await requestJson(`/api/admin/clientes?${params.toString()}`);
+      setCustomers((current) => append ? [...current, ...data.customers] : data.customers);
+      setCustomerCursor(data.nextCursor);
+    } catch (customerError) {
+      setError(customerError instanceof Error ? customerError.message : "Não foi possível carregar os clientes.");
+    } finally {
+      setLoadingCustomers(false);
+    }
+  }, []);
+
+  async function exportCustomers() {
+    setExportingCustomers(true);
+    setError("");
+    try {
+      const allCustomers: Customer[] = [];
+      let cursor: string | null = null;
+      do {
+        const params = new URLSearchParams();
+        if (customerQuery) params.set("q", customerQuery);
+        if (cursor) params.set("cursor", cursor);
+        const data = await requestJson(`/api/admin/clientes?${params.toString()}`);
+        allCustomers.push(...data.customers);
+        cursor = data.nextCursor;
+      } while (cursor);
+
+      const csvCell = (value: string) => {
+        const safeValue = /^[\s]*[=+\-@]/.test(value) ? `'${value}` : value;
+        return `"${safeValue.replace(/"/g, '""')}"`;
+      };
+      const rows = [
+        ["Nome", "E-mail", "Telefone", "Cadastro em"],
+        ...allCustomers.map((customer) => [
+          customer.name,
+          customer.email,
+          customer.phone,
+          new Date(customer.createdAt).toLocaleDateString("pt-BR"),
+        ]),
+      ];
+      const csv = `\uFEFF${rows.map((row) => row.map(csvCell).join(";")).join("\r\n")}`;
+      const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "clientes-rachid-head-shop.csv";
+      link.click();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (exportError) {
+      setError(exportError instanceof Error ? exportError.message : "Não foi possível exportar os clientes.");
+    } finally {
+      setExportingCustomers(false);
+    }
+  }
+
   useEffect(() => {
     requestJson("/api/admin/auth")
       .then(async (data) => {
@@ -239,6 +305,10 @@ export default function AdminPage() {
   useEffect(() => {
     if (authenticated) void loadSales();
   }, [authenticated, loadSales]);
+
+  useEffect(() => {
+    if (authenticated && section === "customers") void loadCustomers(customerQuery);
+  }, [authenticated, customerQuery, loadCustomers, section]);
 
   useEffect(() => {
     if (formOpen) productFormRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -272,6 +342,8 @@ export default function AdminPage() {
       setAuthenticated(false);
       setProducts([]);
       setOrders([]);
+      setCustomers([]);
+      setCustomerCursor(null);
       setSales(null);
       setSelectedOrder(null);
       setPromotionProduct(null);
@@ -684,6 +756,7 @@ export default function AdminPage() {
           {([
             ["dashboard", "◫", "Visão geral"],
             ["orders", "▤", "Pedidos"],
+            ["customers", "♙", "Clientes"],
             ["products", "◈", "Produtos"],
             ["inventory", "▦", "Estoque"],
             ["delivery", "⌖", "Entregas"],
@@ -709,11 +782,12 @@ export default function AdminPage() {
               products: "Produtos",
               inventory: "Estoque",
               orders: "Pedidos",
+              customers: "Clientes",
               delivery: "Entregas",
               revenue: "Receita",
               company: "Dados da empresa",
             } satisfies Record<AdminSection, string>)[section]}</h1></div>
-            <button className="button button-outline" onClick={() => void Promise.all([loadDashboard(), loadSales()])} disabled={loading}>Atualizar</button>
+            <button className="button button-outline" onClick={() => void Promise.all([loadDashboard(), loadSales(), ...(section === "customers" ? [loadCustomers(customerQuery)] : [])])} disabled={loading || loadingCustomers}>Atualizar</button>
           </div>
 
         {error ? <div className="admin-alert admin-alert-error">{error}</div> : null}
@@ -877,6 +951,38 @@ export default function AdminPage() {
               {section === "delivery" && !orders.some((order) => !["concluido", "cancelado"].includes(order.status)) ? <p className="admin-empty">Não há entregas em andamento.</p> : null}
               {section === "orders" && !orders.length && !loading ? <p className="admin-empty">Ainda não há pedidos registrados.</p> : null}
             </div>
+          </section>
+        ) : section === "customers" ? (
+          <section className="admin-section">
+            <div className="admin-section-heading">
+              <div><h2>Clientes cadastrados</h2><p>Consulte contatos registrados para ações e comunicações autorizadas.</p></div>
+              <button type="button" className="button button-outline" onClick={() => void exportCustomers()} disabled={exportingCustomers || loadingCustomers}>
+                {exportingCustomers ? "Preparando CSV..." : "Baixar lista CSV"}
+              </button>
+            </div>
+            <form className="admin-customer-search" onSubmit={(event) => {
+              event.preventDefault();
+              const query = customerSearch.trim();
+              if (query === customerQuery) void loadCustomers(query);
+              else setCustomerQuery(query);
+            }}>
+              <label htmlFor="admin-customer-search">Buscar por nome, e-mail ou telefone</label>
+              <div><input id="admin-customer-search" maxLength={100} value={customerSearch} onChange={(event) => setCustomerSearch(event.target.value)} placeholder="Digite para buscar" /><button className="button button-primary" disabled={loadingCustomers}>{loadingCustomers ? "Buscando..." : "Buscar"}</button></div>
+            </form>
+            <p className="admin-customer-privacy">A lista contém somente nome, e-mail, telefone e data do cadastro. Não compartilhe os dados e use-os apenas conforme a autorização dos clientes.</p>
+            {customers.length ? (
+              <>
+                <div className="admin-customer-table-wrap">
+                  <table className="admin-customer-table">
+                    <thead><tr><th>Nome</th><th>E-mail</th><th>Telefone</th><th>Cadastro</th></tr></thead>
+                    <tbody>{customers.map((customer) => <tr key={customer.id}>
+                      <td>{customer.name}</td><td><a href={`mailto:${customer.email}`}>{customer.email}</a></td><td><a href={`tel:${customer.phone}`}>{customer.phone}</a></td><td>{new Date(customer.createdAt).toLocaleDateString("pt-BR")}</td>
+                    </tr>)}</tbody>
+                  </table>
+                </div>
+                {customerCursor ? <button type="button" className="button button-outline admin-customer-more" onClick={() => void loadCustomers(customerQuery, customerCursor, true)} disabled={loadingCustomers}>{loadingCustomers ? "Carregando..." : "Carregar mais clientes"}</button> : null}
+              </>
+            ) : <p className="admin-empty">{loadingCustomers ? "Carregando clientes..." : customerQuery ? "Nenhum cliente encontrado para essa busca." : "Ainda não há clientes cadastrados."}</p>}
           </section>
         ) : section === "company" ? (
           <section className="admin-section">

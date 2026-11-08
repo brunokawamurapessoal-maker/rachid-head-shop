@@ -14,7 +14,7 @@ type Product = {
   originalPrice: number;
   promotionPercent: number;
   images: string[];
-  stock: number;
+  inStock: boolean;
   badge: string;
   icon: string;
   categoryId: string;
@@ -178,7 +178,7 @@ export default function Home() {
 
   const cartItems = cart.flatMap((item) => {
     const product = products.find((entry) => entry.id === item.id);
-    return product ? [{ ...product, quantity: Math.min(item.quantity, Math.max(product.stock, 1)) }] : [];
+    return product ? [{ ...product, quantity: item.quantity }] : [];
   });
   const itemCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
   const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
@@ -187,13 +187,8 @@ export default function Home() {
   const total = subtotal + (chosenShipping?.preco ?? 0) - pixDiscount;
 
   function addToCart(product: Product, quantity = 1) {
-    if (product.stock < 1) {
+    if (!product.inStock) {
       setToast("Este produto está sem estoque.");
-      return false;
-    }
-    const currentQuantity = cart.find((entry) => entry.id === product.id)?.quantity ?? 0;
-    if (currentQuantity + quantity > product.stock) {
-      setToast("Você atingiu o estoque disponível deste produto.");
       return false;
     }
     setCart((current) => {
@@ -213,10 +208,10 @@ export default function Home() {
     setDetailQuantity(1);
   }
 
-  function setProductQuantity(productId: string, value: number, stock: number) {
+  function setProductQuantity(productId: string, value: number) {
     setCardQuantities((current) => ({
       ...current,
-      [productId]: Math.max(1, Math.min(stock, value)),
+      [productId]: Math.max(1, value),
     }));
   }
 
@@ -227,7 +222,7 @@ export default function Home() {
           {product.images[0] ? <Image className="product-image" src={product.images[0]} alt={product.name} fill sizes="(max-width: 760px) 50vw, 25vw" unoptimized /> : <span className="product-emoji" aria-hidden="true">{product.icon}</span>}
           {product.badge ? <span className="product-badge">{product.badge}</span> : null}
           {product.promotionPercent > 0 ? <span className="product-promotion-badge">−{product.promotionPercent}%</span> : null}
-          <span className="product-stock">{product.stock > 0 ? `${product.stock} disponíveis` : "Indisponível"}</span>
+          <span className="product-stock">{product.inStock ? "Disponível" : "Indisponível"}</span>
         </button>
         <div className="product-info">
           <span className="product-category">{categories.find((category) => category.id === product.categoryId)?.name}</span>
@@ -239,11 +234,11 @@ export default function Home() {
           </div>
           <div className="product-card-actions">
             <div className="quantity-control product-quantity" aria-label={`Quantidade de ${product.name}`}>
-              <button type="button" onClick={() => setProductQuantity(product.id, (cardQuantities[product.id] ?? 1) - 1, product.stock)} disabled={product.stock < 1 || (cardQuantities[product.id] ?? 1) <= 1} aria-label={`Diminuir quantidade de ${product.name}`}>−</button>
+              <button type="button" onClick={() => setProductQuantity(product.id, (cardQuantities[product.id] ?? 1) - 1)} disabled={!product.inStock || (cardQuantities[product.id] ?? 1) <= 1} aria-label={`Diminuir quantidade de ${product.name}`}>−</button>
               <span>{cardQuantities[product.id] ?? 1}</span>
-              <button type="button" onClick={() => setProductQuantity(product.id, (cardQuantities[product.id] ?? 1) + 1, product.stock)} disabled={product.stock < 1 || (cardQuantities[product.id] ?? 1) >= product.stock} aria-label={`Aumentar quantidade de ${product.name}`}>+</button>
+              <button type="button" onClick={() => setProductQuantity(product.id, (cardQuantities[product.id] ?? 1) + 1)} disabled={!product.inStock} aria-label={`Aumentar quantidade de ${product.name}`}>+</button>
             </div>
-            <button className="add-button" onClick={() => addToCart(product, cardQuantities[product.id] ?? 1)} disabled={product.stock < 1}>Adicionar</button>
+            <button className="add-button" onClick={() => addToCart(product, cardQuantities[product.id] ?? 1)} disabled={!product.inStock}>Adicionar</button>
           </div>
         </div>
       </article>
@@ -256,8 +251,8 @@ export default function Home() {
       return;
     }
     const product = products.find((entry) => entry.id === productId);
-    if (product && quantity > product.stock) {
-      setToast("Quantidade maior que o estoque disponível.");
+    if (product && !product.inStock) {
+      setToast("Este produto está sem estoque.");
       return;
     }
     setCart((current) => current.map((entry) => entry.id === productId ? { ...entry, quantity } : entry));
@@ -513,14 +508,14 @@ export default function Home() {
             <p>{selectedProduct.description || "Consulte a loja para mais detalhes sobre este produto."}</p>
             {selectedProduct.promotionPercent > 0 ? <><span className="product-modal-promotion">PROMOÇÃO · {selectedProduct.promotionPercent}% OFF</span><del className="product-modal-original-price">{money(selectedProduct.originalPrice)}</del></> : null}
             <strong className="product-modal-price">{money(selectedProduct.price)}</strong>
-            <small className="product-modal-stock">{selectedProduct.stock > 0 ? `${selectedProduct.stock} unidade(s) disponíveis` : "Indisponível no momento"}</small>
+            <small className="product-modal-stock">{selectedProduct.inStock ? "Disponível" : "Indisponível no momento"}</small>
             <div className="product-modal-purchase">
               <div className="quantity-control" aria-label={`Quantidade de ${selectedProduct.name}`}>
                 <button type="button" onClick={() => setDetailQuantity((current) => Math.max(1, current - 1))} disabled={detailQuantity <= 1} aria-label="Diminuir quantidade">−</button>
                 <span>{detailQuantity}</span>
-                <button type="button" onClick={() => setDetailQuantity((current) => Math.min(selectedProduct.stock, current + 1))} disabled={selectedProduct.stock < 1 || detailQuantity >= selectedProduct.stock} aria-label="Aumentar quantidade">+</button>
+                <button type="button" onClick={() => setDetailQuantity((current) => current + 1)} disabled={!selectedProduct.inStock} aria-label="Aumentar quantidade">+</button>
               </div>
-              <button className="button button-primary" onClick={() => { if (addToCart(selectedProduct, detailQuantity)) setSelectedProduct(null); }} disabled={selectedProduct.stock < 1}>Adicionar ao carrinho</button>
+              <button className="button button-primary" onClick={() => { if (addToCart(selectedProduct, detailQuantity)) setSelectedProduct(null); }} disabled={!selectedProduct.inStock}>Adicionar ao carrinho</button>
             </div>
           </div>
         </section>

@@ -35,8 +35,9 @@ export async function GET() {
         ...category,
         count: _count.products,
       })),
-      products: products.map(({ priceInCents, imageUrls, promotionPercent, ...product }) => ({
+      products: products.map(({ priceInCents, imageUrls, promotionPercent, stock, ...product }) => ({
         ...product,
+        inStock: stock > 0,
         price: Math.max(1, Math.round(priceInCents * (100 - promotionPercent) / 100)) / 100,
         originalPrice: priceInCents / 100,
         promotionPercent,
