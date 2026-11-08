@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import "./globals.css"; // <--- Esta linha é obrigatória para carregar os estilos
+import "@/app/globals.css";
 
 export const metadata: Metadata = {
   title: "Rachid Head Shop | Cultura, qualidade e estilo",
