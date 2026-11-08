@@ -170,16 +170,12 @@ export default function AdminPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
-  const [customerSearch, setCustomerSearch] = useState("");
   const [customerQuery, setCustomerQuery] = useState("");
   const [customerCursor, setCustomerCursor] = useState<string | null>(null);
   const [loadingCustomers, setLoadingCustomers] = useState(false);
   const [exportingCustomers, setExportingCustomers] = useState(false);
   const [section, setSection] = useState<AdminSection>("dashboard");
   const [sales, setSales] = useState<SalesDashboard | null>(null);
-  const [period, setPeriod] = useState("7");
-  const [customStart, setCustomStart] = useState("");
-  const [customEnd, setCustomEnd] = useState("");
   const [salesQuery, setSalesQuery] = useState("days=7");
   const [settings, setSettings] = useState<StoreSettings>(emptySettings);
   const [deliveryZones, setDeliveryZones] = useState<DeliveryZone[]>([]);
@@ -534,35 +530,6 @@ export default function AdminPage() {
       await Promise.all([loadDashboard(), loadSales()]);
     } catch (toggleError) {
       setError(toggleError instanceof Error ? toggleError.message : "Não foi possível alterar o produto.");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  function startPromotionEdit(product: Product) {
-    setPromotionProduct(product);
-    setPromotionValue(String(product.promotionPercent || 10));
-    setError("");
-    setNotice("");
-  }
-
-  async function savePromotion(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!promotionProduct) return;
-    setLoading(true);
-    setError("");
-    setNotice("");
-    try {
-      await requestJson(`/api/admin/produtos/${promotionProduct.id}/promocao`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ percent: Number(promotionValue) }),
-      });
-      setPromotionProduct(null);
-      setNotice(Number(promotionValue) === 0 ? "Promoção removida." : `Promoção de ${promotionValue}% aplicada até ser desativada.`);
-      await Promise.all([loadDashboard(), loadSales()]);
-    } catch (promotionError) {
-      setError(promotionError instanceof Error ? promotionError.message : "Não foi possível salvar a promoção.");
     } finally {
       setLoading(false);
     }
@@ -954,7 +921,6 @@ export default function AdminPage() {
                         <td>
                           <div className="admin-row-actions">
                             <button className="button button-outline" onClick={() => startEdit(product)}>Editar</button>
-                            <button className="button button-outline" onClick={() => startPromotionEdit(product)}>Promoção</button>
                             <button className="button button-quiet" onClick={() => toggleProduct(product)}>{product.active ? "Desativar" : "Ativar"}</button>
                           </div>
                         </td>
@@ -967,9 +933,38 @@ export default function AdminPage() {
           </section>
         ) : null}
 
-        {/* Demais secções mantêm-se integradas no painel */}
-        </section>
-      </div>
-    </main>
-  );
-}
+        {section === "orders" ? (
+          <section className="admin-section">
+            {selectedOrder ? (
+              <div className="admin-form">
+                <div className="admin-form-header">
+                  <h2>Detalhes do Pedido #{selectedOrder.id.slice(-8).toUpperCase()}</h2>
+                  <button type="button" className="button button-quiet" onClick={() => setSelectedOrder(null)}>Voltar à lista</button>
+                </div>
+                <div className="admin-order-details-grid">
+                  <p><strong>Cliente:</strong> {selectedOrder.customerName} ({selectedOrder.customerEmail}, {selectedOrder.customerPhone})</p>
+                  <p><strong>Endereço:</strong> {selectedOrder.address}, {selectedOrder.addressNumber} - {selectedOrder.neighborhood}, {selectedOrder.city} / {selectedOrder.state} (CEP: {selectedOrder.postalCode})</p>
+                  {selectedOrder.deliveryReference ? <p><strong>Referência:</strong> {selectedOrder.deliveryReference}</p> : null}
+                  <p><strong>Método de Envio:</strong> {selectedOrder.shippingMethod} {selectedOrder.shippingPending ? "(Frete pendente)" : ""}</p>
+                  <p><strong>Pagamento:</strong> {selectedOrder.paymentMethod} {selectedOrder.cashChangeForInCents ? `(Troco para R$ ${(selectedOrder.cashChangeForInCents / 100).toFixed(2)})` : ""}</p>
+                  <p><strong>Status Atual:</strong> {statusLabel(selectedOrder.status)}</p>
+                  
+                  <h3>Itens do Pedido</h3>
+                  <ul className="admin-order-items-list">
+                    {selectedOrder.items.map((item, idx) => (
+                      <li key={idx}>
+                        <span>{item.quantity}x {item.productName}</span>
+                        <span>{money(item.quantity * item.unitPriceInCents)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  <div className="admin-order-totals">
+                    <p>Subtotal: {money(selectedOrder.subtotalInCents)}</p>
+                    <p>Frete: {money(selectedOrder.shippingInCents)}</p>
+                    {selectedOrder.discountInCents ? <p>Desconto: -{money(selectedOrder.discountInCents)}</p> : null}
+                    <p><strong>Total: {money(selectedOrder.totalInCents)}</strong></p>
+                  </div>
+                </div>
+                <div className="admin-form-actions">
+                  <label>Alterar Status:
+                    <select value={selectedOrder.status} onChange={(e
