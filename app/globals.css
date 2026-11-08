@@ -509,10 +509,12 @@ a { color: inherit; text-decoration: none; }
 .customer-auth-tabs button.active { border-bottom-color: var(--green); color: var(--green-bright); }
 .customer-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 15px; }
 .customer-form > label { min-width: 0; color: var(--text); font-size: 11px; font-weight: 600; }
-.customer-form > label input, .customer-postal-field input { width: 100%; min-width: 0; min-height: 44px; margin-top: 7px; padding: 0 11px; border: 1px solid var(--line); border-radius: 4px; outline: 0; background: #0b120d; color: var(--text); font-size: 12px; }
-.customer-form input:focus { border-color: var(--green); }
+.customer-form > label input, .customer-form > label select, .customer-postal-field input { width: 100%; min-width: 0; min-height: 44px; margin-top: 7px; padding: 0 11px; border: 1px solid var(--line); border-radius: 4px; outline: 0; background: #0b120d; color: var(--text); font-size: 12px; }
+.customer-form input:focus, .customer-form select:focus { border-color: var(--green); }
 .customer-form input[readonly] { color: var(--muted); }
 .customer-form label > small { display: block; margin-top: 6px; color: var(--muted); font-size: 9px; font-weight: 400; }
+.customer-neighborhood-whatsapp { display: inline-block; margin-top: 8px; color: var(--green-bright); font-size: 11px; font-weight: 600; }
+.customer-form label > .customer-neighborhood-warning { color: #e5a099; }
 .customer-auth-card .customer-form { grid-template-columns: 1fr; gap: 13px; }
 .customer-auth-card .customer-form .button { width: 100%; margin-top: 5px; }
 .customer-recovery-link { display: inline-block; margin-top: 15px; color: var(--green-bright); font-size: 11px; }
