@@ -20,6 +20,8 @@ export async function GET() {
           name: true,
           description: true,
           priceInCents: true,
+          imageUrls: true,
+          promotionPercent: true,
           stock: true,
           badge: true,
           icon: true,
@@ -33,9 +35,12 @@ export async function GET() {
         ...category,
         count: _count.products,
       })),
-      products: products.map(({ priceInCents, ...product }) => ({
+      products: products.map(({ priceInCents, imageUrls, promotionPercent, ...product }) => ({
         ...product,
-        price: priceInCents / 100,
+        price: Math.max(1, Math.round(priceInCents * (100 - promotionPercent) / 100)) / 100,
+        originalPrice: priceInCents / 100,
+        promotionPercent,
+        images: imageUrls.split(/\r?\n/).map((url) => url.trim()).filter(Boolean),
       })),
     });
   } catch (error) {

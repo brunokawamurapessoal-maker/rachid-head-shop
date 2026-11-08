@@ -24,10 +24,33 @@ O SQLite fica em `prisma/dev.db` e não é enviado ao GitHub. O arquivo `.env` t
 
 - Catálogo vindo do banco de dados, busca e filtros por categoria
 - Carrinho salvo no navegador
-- Consulta de CEP e estimativa de frete via ViaCEP
+- Área do cliente com conta, endereço salvo e histórico de pedidos
+- Entrega local calculada por faixa de CEP e entrega terceirizada com valor combinado pelo WhatsApp
+- Resumo do pedido preparado para envio ao WhatsApp cadastrado pela empresa
 - Registro persistente de pedidos, com preço recalculado no servidor
 - Consulta de saúde em `/api/health`
 - Assistente de perguntas frequentes sem expor chaves de terceiros no navegador
+- Painel administrativo protegido para gerenciar produtos e acompanhar pedidos
+
+## Área administrativa
+
+Acesse `/admin` e entre com a senha definida em `ADMIN_PASSWORD`. Para habilitar o acesso localmente, gere uma senha forte com pelo menos 12 caracteres e um segredo aleatório com pelo menos 32 caracteres para `ADMIN_SESSION_SECRET`, e defina ambos no arquivo `.env`. Por exemplo, no PowerShell:
+
+```powershell
+$bytes = [byte[]]::new(32)
+[Security.Cryptography.RandomNumberGenerator]::Fill($bytes)
+[Convert]::ToBase64String($bytes)
+```
+
+Use o valor gerado para `ADMIN_SESSION_SECRET` e configure a senha administrativa separadamente. Gere outro segredo aleatório para `CUSTOMER_SESSION_SECRET`. Em produção, configure essas variáveis como segredos no provedor de hospedagem — nunca as publique no repositório. A sessão administrativa expira após 8 horas e a sessão do cliente após 30 dias. O painel permite gerenciar produtos, imagens por URLs públicas (uma por linha), custo, estoque mínimo, faixas locais de CEP, dados da empresa e pedidos. Em Estoque, produtos ativos com quantidade igual ou inferior ao mínimo aparecem como alerta. Ao registrar um pedido, o estoque é reservado; ao cancelar, a quantidade é devolvida. Reativar um pedido tenta reservar o estoque novamente.
+
+Clientes criam conta em `/cliente` com e-mail, CPF válido, telefone e senha, salvam o endereço e consultam seus próprios pedidos. O CPF é armazenado como HMAC, não em texto simples; contas existentes precisam cadastrá-lo no perfil após entrar. A recuperação exige e-mail e CPF correspondentes e envia um código de uso único, válido por 10 minutos, por SMTP. O código aceita no máximo cinco tentativas; solicitações são limitadas e uma redefinição invalida as sessões anteriores. Para habilitar o envio pelo Gmail, crie uma senha de app e configure `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD` e `SMTP_FROM` em `.env` ou nos segredos do servidor. Nunca use nem publique a senha normal da conta Google.
+
+Visitantes também podem informar o CEP na landing page para consultar as opções de frete; para concluir um pedido, ainda é necessário entrar na conta. A tarifa local só é oferecida quando o CEP é da mesma cidade da empresa e corresponde a uma faixa ativa configurada em `/admin` → Entregas. A opção terceirizada deixa o frete pendente de cotação. Após registrar um pedido, o site abre um link do WhatsApp da empresa com os itens, endereço, pagamento, subtotal, frete e total preenchidos. O cliente ainda precisa tocar em **Enviar** no WhatsApp; o site não envia mensagens em nome do usuário.
+
+Em `/admin` → Produtos, use **Promoção** no card para aplicar um desconto de 5% a 90%. A promoção altera o preço calculado pelo servidor e permanece ativa até ser removida pelo admin. O desconto aparece no card do catálogo e na seção Promoções. Ao entrar na área do cliente, o cliente também verá promoções de produtos associados a pedidos anteriores não cancelados.
+
+Em `/admin` → Receita, selecione os últimos 7, 15, 30, 120 ou 240 dias ou um intervalo personalizado. A análise exclui pedidos cancelados e frete; representa pedidos registrados, não pagamentos confirmados. O lucro e as margens ficam indisponíveis se faltar custo em qualquer item vendido no período. Custos de novos pedidos são preservados como histórico no momento da compra; pedidos anteriores sem esse registro não são tratados como lucro integral.
 
 ## Pagamentos e produção
 
@@ -35,7 +58,7 @@ O site **não processa pagamentos**. Pix, cartão e boleto são registrados some
 
 Esta configuração SQLite é voltada a desenvolvimento ou a um servidor persistente de instância única. Não use o arquivo SQLite local como banco de produção em hospedagens serverless ou com disco efêmero. Para esses cenários, migre para um PostgreSQL gerenciado antes do deploy.
 
-As opções de frete e prazos exibidos são estimativas regionais, não uma cotação contratada com os Correios.
+As tarifas locais são definidas pela loja nas faixas de CEP do painel administrativo. O frete terceirizado só é confirmado pela loja no WhatsApp.
 
 ## Comandos
 
@@ -54,8 +77,9 @@ As opções de frete e prazos exibidos são estimativas regionais, não uma cota
 
 - `GET /api/health` — estado da aplicação e do banco
 - `GET /api/catalogo/produtos` — categorias e produtos ativos
-- `GET /api/frete?cep=60000000&valor=150` — endereço e opções estimadas
-- `POST /api/pedido` — registrar um pedido; os preços e o frete são recalculados no servidor
+- `GET /api/frete?cep=60000000` — valida CEP e retorna as opções locais configuradas
+- `POST /api/pedido` — registrar um pedido autenticado; os preços e a tarifa local são recalculados no servidor
+- `/api/cliente/*` — autenticação, perfil e histórico privado do cliente
 - `POST /api/chat` — resposta para perguntas frequentes
 
 O arquivo `.env.example` documenta as variáveis disponíveis. Nunca publique valores reais de chaves ou credenciais.

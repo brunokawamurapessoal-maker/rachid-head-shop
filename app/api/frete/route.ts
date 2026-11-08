@@ -5,22 +5,18 @@ export const runtime = "nodejs";
 
 export async function GET(request: NextRequest) {
   const cep = request.nextUrl.searchParams.get("cep") ?? "";
-  const rawSubtotal = Number(request.nextUrl.searchParams.get("valor") ?? "0");
-
-  if (!Number.isFinite(rawSubtotal) || rawSubtotal < 0) {
-    return NextResponse.json({ erro: "Valor do pedido inválido." }, { status: 400 });
-  }
-
   try {
-    const quote = await quoteShipping(cep, Math.round(rawSubtotal * 100));
+    const quote = await quoteShipping(cep);
     return NextResponse.json({
       ...quote.address,
-      opcoes: quote.options.map(({ code, name, priceInCents, deliveryTime, free }) => ({
+      loja: quote.store,
+      opcoes: quote.options.map(({ code, name, priceInCents, deliveryTime, free, quotePending }) => ({
         codigo: code,
         nome: name,
         preco: priceInCents / 100,
         prazo: deliveryTime,
         gratis: free,
+        cotacaoPendente: quotePending,
       })),
     });
   } catch (error) {
