@@ -1,27 +1,12 @@
-import nodemailer from "nodemailer";
+import { Resend } from "resend";
 
-type SmtpConfiguration = {
-  host: string;
-  port: number;
-  user: string;
-  password: string;
-  from: string;
-};
+// Variáveis de ambiente (as mesmas que o projeto já usava):
+//   RESEND_API_KEY  chave da API do Resend (começa com "re_")
+//   EMAIL_FROM      remetente, ex.: Rachid Head Shop <contato@seudominio.com.br>
+const DEFAULT_FROM = "Rachid Head Shop <onboarding@resend.dev>";
 
-function smtpConfiguration(): SmtpConfiguration | null {
-  const host = process.env.SMTP_HOST?.trim() || "";
-  const port = Number(process.env.SMTP_PORT || "587");
-  const user = process.env.SMTP_USER?.trim() || "";
-  // Senhas de app do Google costumam ser coladas com espaços ("abcd efgh ijkl mnop"); o SMTP não aceita os espaços.
-  const password = (process.env.SMTP_PASSWORD || "").replace(/\s+/g, "");
-  const from = process.env.SMTP_FROM?.trim() || "";
-  if (!host || !Number.isInteger(port) || port < 1 || port > 65535 || !user || !password ||
-    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(from)) return null;
-  return { host, port, user, password, from };
-}
-
-export function isCustomerEmailConfigured() {
-  return smtpConfiguration() !== null;
+export function isCustomerEmailConfigured(): boolean {
+  return Boolean(process.env.RESEND_API_KEY?.trim().startsWith("re_"));
 }
 
 function recoveryEmailHtml(code: string) {
@@ -47,36 +32,23 @@ function recoveryEmailHtml(code: string) {
 }
 
 export async function sendCustomerRecoveryCode(email: string, code: string) {
-  const config = smtpConfiguration();
-  if (!config) throw new Error("O envio de e-mail da recuperação não está configurado.");
-
-  const transporter = nodemailer.createTransport({
-    host: config.host,
-    port: config.port,
-    // 465 usa TLS direto; 587 inicia em texto e sobe para TLS (STARTTLS), que exigimos abaixo.
-    secure: config.port === 465,
-    requireTLS: config.port !== 465,
-    auth: { user: config.user, pass: config.password },
-    connectionTimeout: 10_000,
-    greetingTimeout: 10_000,
-    socketTimeout: 15_000,
-  });
-
-  try {
-    await transporter.sendMail({
-      from: { name: "Rachid Head Shop", address: config.from },
-      to: email,
-      subject: "Seu código de recuperação — Rachid Head Shop",
-      text: [
-        "Recebemos uma solicitação para trocar a senha da sua conta da Rachid Head Shop.",
-        "",
-        `Seu código de segurança é: ${code}`,
-        "",
-        "O código expira em 10 minutos e só pode ser usado uma vez. Se você não solicitou a recuperação, ignore esta mensagem.",
-      ].join("\n"),
-      html: recoveryEmailHtml(code),
-    });
-  } finally {
-    transporter.close();
+  if (!isCustomerEmailConfigured()) {
+    throw new Error("O envio de e-mail da recuperação não está configurado.");
   }
+  const resend = new Resend(process.env.RESEND_API_KEY!.trim());
+  const { data, error } = await resend.emails.send({
+    from: process.env.EMAIL_FROM?.trim() || DEFAULT_FROM,
+    to: [email],
+    subject: "Seu código de recuperação — Rachid Head Shop",
+    text: [
+      "Recebemos uma solicitação para trocar a senha da sua conta da Rachid Head Shop.",
+      "",
+      `Seu código de segurança é: ${code}`,
+      "",
+      "O código expira em 10 minutos e só pode ser usado uma vez. Se você não solicitou a recuperação, ignore esta mensagem.",
+    ].join("\n"),
+    html: recoveryEmailHtml(code),
+  });
+  if (error) throw new Error(error.message);
+  return data;
 }
