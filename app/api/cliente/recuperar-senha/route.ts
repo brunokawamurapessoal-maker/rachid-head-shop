@@ -14,6 +14,7 @@ import { isCustomerEmailConfigured, sendCustomerRecoveryCode } from "@/lib/custo
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const maxDuration = 30;
 
 const responseHeaders = { "Cache-Control": "no-store" };
 const recoveryResponse = {
@@ -115,8 +116,9 @@ export async function POST(request: NextRequest) {
             where: { id: recovery.id },
             data: { tokenHash: null, consumedAt: new Date() },
           });
+          // Resposta idêntica à de "conta inexistente", para não revelar quais e-mails estão cadastrados.
+          // O motivo real fica nos logs do servidor (Vercel → Logs).
           console.error("Falha ao enviar o código de recuperação por e-mail:", mailError);
-          return json({ erro: "Não foi possível enviar o e-mail de recuperação. Tente novamente mais tarde." }, 503);
         }
       }
       return json(recoveryResponse, 202);

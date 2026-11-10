@@ -33,7 +33,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="pt-BR" className={`${anton.variable} ${newsreader.variable}`}>
-      <body className="min-h-screen antialiased">{children}</body>
+      <body>{children}</body>
     </html>
   );
 }
