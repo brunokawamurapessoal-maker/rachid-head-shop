@@ -1,10 +1,274 @@
-/* atualizado */
+/* atualizado — tema "boutique": bege quente, pílulas pretas, display condensado + serifa */
+
+@import url('https://fonts.googleapis.com/css2?family=Anton&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Estilos para a tabela e barras de ferramentas do painel administrativo */
+/* ------------------------------------------------------------------ */
+/* Tokens                                                              */
+/* ------------------------------------------------------------------ */
+:root {
+  --bg: #dcd9d4;            /* fundo geral (cinza-areia da referência) */
+  --surface: #f3f0ec;       /* cartões, painéis */
+  --surface-2: #e9e5df;     /* campos, chips inativos */
+  --ink: #111111;           /* texto e botões primários */
+  --ink-soft: #6b6660;      /* texto secundário */
+  --line: rgba(17, 17, 17, 0.1);
+  --clay: #c07a56;          /* terracota (hero/destaques) */
+  --sand: #d9bf8f;          /* dourado-areia */
+  --danger: #b3382c;
+  --ok: #3f6b4a;
+
+  --font-display: 'Anton', 'Bebas Neue', 'Oswald', Impact, sans-serif;
+  --font-body: 'Newsreader', 'Georgia', 'Times New Roman', serif;
+
+  --r-sm: 12px;
+  --r-md: 20px;
+  --r-lg: 32px;
+  --r-pill: 999px;
+
+  --shadow: 0 10px 30px -12px rgba(17, 17, 17, 0.25);
+}
+
+/* ------------------------------------------------------------------ */
+/* Base                                                                */
+/* ------------------------------------------------------------------ */
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--font-body);
+    font-size: 1.0625rem;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1, h2, h3, h4 {
+    font-family: var(--font-display);
+    font-weight: 400;
+    text-transform: uppercase;
+    letter-spacing: 0.01em;
+    line-height: 1.05;
+  }
+
+  h1 { font-size: clamp(2rem, 5vw, 3.25rem); }
+  h2 { font-size: clamp(1.5rem, 3.5vw, 2.25rem); }
+  h3 { font-size: 1.25rem; }
+
+  a { color: inherit; }
+
+  :focus-visible {
+    outline: 2px solid var(--ink);
+    outline-offset: 3px;
+  }
+
+  ::selection {
+    background: var(--clay);
+    color: #fff;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Componentes globais (use em qualquer página)                        */
+/* ------------------------------------------------------------------ */
+@layer components {
+  /* Painel / cartão com cantos grandes */
+  .card {
+    background: var(--surface);
+    border-radius: var(--r-lg);
+    padding: 1.5rem;
+    box-shadow: var(--shadow);
+  }
+
+  /* Botão primário: pílula preta, texto display */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    background: var(--ink);
+    color: #fff;
+    font-family: var(--font-display);
+    font-size: 1.125rem;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    padding: 1rem 2rem;
+    border: 0;
+    border-radius: var(--r-pill);
+    cursor: pointer;
+    transition: transform 0.15s ease, opacity 0.15s ease;
+  }
+  .btn:hover { opacity: 0.88; }
+  .btn:active { transform: scale(0.98); }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-block { width: 100%; }
+
+  .btn-ghost {
+    background: transparent;
+    color: var(--ink);
+    box-shadow: inset 0 0 0 1.5px var(--ink);
+  }
+
+  .btn-danger { background: var(--danger); }
+
+  .btn-sm {
+    font-size: 0.95rem;
+    padding: 0.5rem 1.1rem;
+  }
+
+  /* Chips de filtro (All scents / Woody / Citrus…) */
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    background: var(--surface-2);
+    color: var(--ink-soft);
+    padding: 0.5rem 1.1rem;
+    border: 0;
+    border-radius: var(--r-pill);
+    font-size: 0.95rem;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.15s, color 0.15s;
+  }
+  .chip:hover { color: var(--ink); }
+  .chip[aria-pressed='true'],
+  .chip.is-active {
+    background: var(--ink);
+    color: #fff;
+  }
+
+  /* Imagem de produto circular ou em arco */
+  .product-circle {
+    aspect-ratio: 1;
+    border-radius: 50%;
+    object-fit: cover;
+    background: var(--sand);
+  }
+  .product-arch {
+    border-radius: 999px 999px var(--r-lg) var(--r-lg);
+    object-fit: cover;
+    background: var(--sand);
+  }
+
+  /* Rótulos de marca/produto */
+  .brand-label {
+    font-family: var(--font-display);
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    font-size: 1rem;
+  }
+  .price {
+    font-family: var(--font-body);
+    font-weight: 500;
+  }
+  .meta-label {
+    color: var(--ink-soft);
+    font-size: 0.95rem;
+  }
+
+  /* Campos de formulário */
+  .field,
+  input[type='text'],
+  input[type='email'],
+  input[type='password'],
+  input[type='number'],
+  input[type='search'],
+  input[type='tel'],
+  select,
+  textarea {
+    width: 100%;
+    background: var(--surface-2);
+    color: var(--ink);
+    border: 1.5px solid transparent;
+    border-radius: var(--r-md);
+    padding: 0.8rem 1.1rem;
+    font-family: var(--font-body);
+    font-size: 1rem;
+    outline: none;
+    transition: border-color 0.2s, background 0.2s;
+  }
+  .field:focus,
+  input:focus,
+  select:focus,
+  textarea:focus {
+    border-color: var(--ink);
+    background: var(--surface);
+  }
+  ::placeholder { color: var(--ink-soft); opacity: 0.8; }
+
+  /* Seletor de quantidade (− 1 +) */
+  .qty {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 1rem;
+  }
+  .qty button {
+    background: none;
+    border: 0;
+    font-size: 1.25rem;
+    line-height: 1;
+    cursor: pointer;
+    color: var(--ink);
+  }
+
+  /* Barra de navegação flutuante (pílula preta) */
+  .nav-pill {
+    position: fixed;
+    left: 50%;
+    bottom: 1.25rem;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 1.75rem;
+    align-items: center;
+    background: var(--ink);
+    color: #fff;
+    padding: 0.9rem 1.6rem;
+    border-radius: var(--r-pill);
+    box-shadow: var(--shadow);
+    z-index: 50;
+  }
+  .nav-pill a,
+  .nav-pill button {
+    color: rgba(255, 255, 255, 0.6);
+    background: none;
+    border: 0;
+    cursor: pointer;
+    transition: color 0.15s;
+  }
+  .nav-pill a:hover,
+  .nav-pill a[aria-current='page'],
+  .nav-pill button:hover { color: #fff; }
+
+  /* Faixa hero com cor de destaque */
+  .hero-clay {
+    background: var(--clay);
+    color: #fff;
+    border-radius: 0 0 var(--r-lg) var(--r-lg);
+  }
+
+  /* Badges de status */
+  .badge {
+    display: inline-block;
+    padding: 0.2rem 0.75rem;
+    border-radius: var(--r-pill);
+    background: var(--surface-2);
+    font-size: 0.85rem;
+  }
+  .badge-ok { background: rgba(63, 107, 74, 0.15); color: var(--ok); }
+  .badge-danger { background: rgba(179, 56, 44, 0.15); color: var(--danger); }
+  .badge-warn { background: rgba(192, 122, 86, 0.2); color: #8a4f2f; }
+}
+
+/* ------------------------------------------------------------------ */
+/* Painel administrativo                                               */
+/* ------------------------------------------------------------------ */
 .admin-toolbar {
   display: flex;
   justify-content: space-between;
@@ -15,25 +279,26 @@
 }
 
 .admin-toolbar input {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
-  padding: 0.75rem 1rem;
-  color: #fff;
+  background: var(--surface);
+  border: 1.5px solid transparent;
+  border-radius: var(--r-pill);
+  padding: 0.8rem 1.4rem;
+  color: var(--ink);
   font-size: 0.95rem;
   min-width: 300px;
+  width: auto;
   outline: none;
   transition: border-color 0.2s;
 }
 
 .admin-toolbar input:focus {
-  border-color: rgba(255, 255, 255, 0.3);
+  border-color: var(--ink);
 }
 
 .admin-table-wrapper {
-  background: rgba(255, 255, 255, 0.01);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 12px;
+  background: var(--surface);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow);
   overflow-x: auto;
   margin-top: 1rem;
 }
@@ -47,16 +312,21 @@
 
 .admin-table th {
   padding: 1rem 1.25rem;
-  font-weight: 500;
-  color: rgba(255, 255, 255, 0.6);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-  background: rgba(255, 255, 255, 0.02);
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: 0.95rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--ink);
+  border-bottom: 1px solid var(--line);
+  background: var(--surface-2);
+  white-space: nowrap;
 }
 
 .admin-table td {
   padding: 1rem 1.25rem;
-  color: rgba(255, 255, 255, 0.9);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  color: var(--ink);
+  border-bottom: 1px solid var(--line);
 }
 
 .admin-table tbody tr:last-child td {
@@ -64,11 +334,21 @@
 }
 
 .admin-table tbody tr:hover {
-  background: rgba(255, 255, 255, 0.02);
+  background: rgba(17, 17, 17, 0.03);
 }
 
 .admin-load-more {
   display: flex;
   justify-content: center;
   margin-top: 1.5rem;
+}
+
+/* ------------------------------------------------------------------ */
+/* Acessibilidade                                                      */
+/* ------------------------------------------------------------------ */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    animation: none !important;
+  }
 }
