@@ -1,12 +1,18 @@
-import { Resend } from "resend";
+import nodemailer from "nodemailer";
 
-// Variáveis de ambiente (as mesmas que o projeto já usava):
-//   RESEND_API_KEY  chave da API do Resend (começa com "re_")
-//   EMAIL_FROM      remetente, ex.: Rachid Head Shop <contato@seudominio.com.br>
-const DEFAULT_FROM = "Rachid Head Shop <onboarding@resend.dev>";
+// Configuração do remetente padrão
+const DEFAULT_FROM = process.env.EMAIL_FROM || "Rachid Head Shop <nao-responda@seudominio.com.br>";
 
+/**
+ * Verifica se as credenciais de SMTP estão configuradas no .env
+ */
 export function isCustomerEmailConfigured(): boolean {
-  return Boolean(process.env.RESEND_API_KEY?.trim().startsWith("re_"));
+  return Boolean(
+    process.env.SMTP_HOST &&
+    process.env.SMTP_PORT &&
+    process.env.SMTP_USER &&
+    process.env.SMTP_PASS
+  );
 }
 
 function recoveryEmailHtml(code: string) {
@@ -33,12 +39,23 @@ function recoveryEmailHtml(code: string) {
 
 export async function sendCustomerRecoveryCode(email: string, code: string) {
   if (!isCustomerEmailConfigured()) {
-    throw new Error("O envio de e-mail da recuperação não está configurado.");
+    throw new Error("O envio de e-mail por SMTP/Supabase não está configurado.");
   }
-  const resend = new Resend(process.env.RESEND_API_KEY!.trim());
-  const { data, error } = await resend.emails.send({
-    from: process.env.EMAIL_FROM?.trim() || DEFAULT_FROM,
-    to: [email],
+
+  // Cria o transporter utilizando as configurações de SMTP do seu provedor / Supabase
+  const transporter = nodemailer.createTransport({
+    host: process.env.SMTP_HOST,
+    port: Number(process.env.SMTP_PORT) || 587,
+    secure: Number(process.env.SMTP_PORT) === 465, // true para 465, false para outras portas
+    auth: {
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS,
+    },
+  });
+
+  const mailOptions = {
+    from: DEFAULT_FROM,
+    to: email,
     subject: "Seu código de recuperação — Rachid Head Shop",
     text: [
       "Recebemos uma solicitação para trocar a senha da sua conta da Rachid Head Shop.",
@@ -48,7 +65,8 @@ export async function sendCustomerRecoveryCode(email: string, code: string) {
       "O código expira em 10 minutos e só pode ser usado uma vez. Se você não solicitou a recuperação, ignore esta mensagem.",
     ].join("\n"),
     html: recoveryEmailHtml(code),
-  });
-  if (error) throw new Error(error.message);
-  return data;
+  };
+
+  const info = await transporter.sendMail(mailOptions);
+  return info;
 }
